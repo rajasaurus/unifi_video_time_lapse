@@ -6,6 +6,14 @@ devel release
 	add start and stop methods for launchd
 	automate ffmpeg frame-to-video creation and concatenation
 
+if you are seeing an openssl error reference this article:
+	https://github.com/kelaberetiv/TagUI/issues/635
+
+	error ref:
+	dyld: Library not loaded: /usr/local/opt/openssl/lib/libssl.1.0.0.dylib
+		Referenced from: /usr/local/bin/ffmpeg
+
+
 '''
 import os
 import sys
@@ -24,12 +32,17 @@ STORAGE_DIR = '/mnt/syntonique_inc/_OPUS38/studio_build/video/'
 
 
 def camera_setup():
-	#### setup camera names and associated rtsp streams
+	'''
+	setup camera names and associated rtsp streams
+	'''
 	cameras = dict()
 	# 1st Floor Entry Camera
-	cameras['1F_ENTRY'] = 'rtsp://192.168.1.40:7447/5c5f8a9fe4b00470df314462_0'
+	cameras['1F_REAR'] = 'rtsp://192.168.1.40:7447/5c5f8a9fe4b00470df314462_0'
 	# 1st Floor Main Camera
-	cameras['1F_MAIN'] = 'rtsp://192.168.1.40:7447/5c5f8a9fe4b00470df314461_0'
+	cameras['1F_SERVER_ROOM'] = 'rtsp://192.168.1.40:7447/5c5f8a9fe4b00470df314461_0'
+	# 1st Floor Main Camera
+	cameras['1F_1139_Entry'] = 'rtsp://192.168.1.40:7447/5e5ad155e4b02e3879b5a97c_0'
+
 	# 2nd Floor Front Camera
 	cameras['2F_FRONT'] = 'rtsp://192.168.1.40:7447/5c5f8a9fe4b00470df31445d_0'
 	# 2nd Floor Rear Camera
@@ -41,11 +54,11 @@ def camera_setup():
 
 
 def create_storage_folder():
-	#### file system management
-
+	'''
+	file system management
+	'''
 	#### create todays folder name e.g "20190322"
 	todays_date = time.strftime("%Y%m%d")
-	#print (todays_date)
 
 	#### check if todays folder exists "/mnt/syntonique_inc/_OPUS38/studio_build/video/20190322"
 	todays_dir_exists = os.path.isdir(STORAGE_DIR + todays_date)
@@ -75,8 +88,7 @@ def move_snapshots_to_storage_folder(ffmpeg_snapshots, todays_date):
 	for snapshot in ffmpeg_snapshots:
 		current_path = BASE_DIR + snapshot
 		rename_path = STORAGE_DIR + todays_date + "/" + snapshot
-		#print (current_path)
-		#print (rename_path)
+
 		## if file exists
 		if os.path.isfile(current_path):
 			print ("MOVING\n", "\t", current_path, "\n\t", rename_path)
@@ -102,6 +114,9 @@ def camera_take_snapshots(cameras):
 		file_path_file_name = BASE_DIR + camera + "_" + localtime + ".jpeg"
 		
 		#### adding -rtsp_transport tcp in lieu of consistently dropped packets on a couple cameras on std UDP
+		#### ffmpeg -ss 2 -rtsp_transport tcp -i cameras[camera] -y -f image2 -frames 1 -nostats -loglevel warning file_path_file_name
+		#### ffmpeg -ss 2 -rtsp_transport tcp -i rtsp://192.168.1.40:7447/5c5f8a9fe4b00470df31445d_0 -y -f image2 -frames 1 -nostats -loglevel warning test.jpeg
+
 		p = subprocess.run(['ffmpeg', '-ss', '2','-rtsp_transport','tcp', '-i', cameras[camera] ,'-y','-f','image2','-frames','1','-nostats','-loglevel','warning', file_path_file_name])
 		#p = subprocess.Popen(['ffmpeg', '-ss', '2','-rtsp_transport','tcp', '-i', cameras[camera] ,'-y','-f','image2','-frames','1','-nostats','-loglevel','warning', file_path_file_name])
 		#p = subprocess.Popen(['touch', file_path_file_name])
@@ -135,7 +150,6 @@ def dusk_til_dawn():
 		(city.latitude, city.longitude))
 
 	#### create todays folder name e.g "20190322"
-	#todays_date = time.strftime("%Y%m%d")
 	now = datetime.datetime.now()
 
 	sun = city.sun(date=datetime.date(now.year, now.month, now.day), local=True)
@@ -168,7 +182,6 @@ def current_time_between_dawn_and_dusk(dawn, dusk):
 	
 	#### create local time stamp for file prefix "170409"
 	now = time.strftime("%H%M%S")
-	#print (now)
 
 	#### if current time is between dawn and dusk
 	if int(now) > int(dawn) and int(now) < int(dusk):
@@ -179,12 +192,6 @@ def current_time_between_dawn_and_dusk(dawn, dusk):
 
 
 if __name__=='__main__':
-
-	#cameras = camera_setup()
-	#ffmpeg_snapshots = camera_take_snapshots(cameras)
-
-	#todays_date = create_storage_folder()
-	#move_snapshots_to_storage_folder(ffmpeg_snapshots, todays_date)
 
 	with daemon.DaemonContext( working_directory=BASE_DIR, stdout=sys.stdout, stderr=sys.stderr ):
 
@@ -209,8 +216,6 @@ if __name__=='__main__':
 			else:
 				print ("False")
 				time.sleep(600)
-
-
 
 
 
